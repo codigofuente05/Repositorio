@@ -13,9 +13,12 @@ var hostAggregatorPort string
 var nodosChan = make(chan string,1)
 func EnviarSinRespuesta(msg, hostTarget string){
 	host:=fmt.Sprintf(":%s",hostTarget)
-	fmt.Printf("Enviar sin respuesta %s",host)
-	conn,_:=net.Dial("tcp",host)
+	conn,err:=net.Dial("tcp",host)
 	defer conn.Close()
+	if err!=nil{
+		fmt.Printf("Error en enviar notificacion %s",err.Error())
+	}
+	
 	fmt.Fprintf(conn,"%s\n",msg)
 }
 func EnviarConRespuesta(hostTarget string){
@@ -39,7 +42,7 @@ func ServidorAgregador(){
 	defer ln.Close()
 	for{
 		con,_:=ln.Accept()
-		go func(){
+		go func(con net.Conn){
 			defer con.Close()
 			r:=bufio.NewReader(con)
 			nodo,_:=r.ReadString('\n')
@@ -47,13 +50,14 @@ func ServidorAgregador(){
 			nodos[nodo]=true
 			fmt.Printf("El mapa actualizado %v",nodos)
 			nodosChan<-"Terminado"
-		}()
+		}(con)
 	}
 
 }
 func ClienteAgregador(nodo string){
 	for k,_ :=range nodos{
-		EnviarSinRespuesta(nodo,k)
+		k=strings.TrimSpace(k)
+		 EnviarSinRespuesta(nodo,k)
 	}
 
 }
@@ -67,7 +71,7 @@ func ServidorRegistrador(){
 	defer ln.Close()
 	for{ 
 		con,_:=ln.Accept()
-		go func(){
+		go func(con net.Conn){
 			defer con.Close()
 			r:=bufio.NewReader(con)
 			nodo,_:=r.ReadString('\n')
@@ -84,7 +88,7 @@ func ServidorRegistrador(){
 			fmt.Printf("El mapa actualizado %v",nodos)
 			nodosChan<-"terminado"
 			
-		}()
+		}(con)
 	}
 
 }
